@@ -7,10 +7,7 @@
 # Usage:
 #   export LLM_ENDPOINT=<your-openai-compatible-endpoint>
 #   export LLM_API_KEY=<your-key>
-#   ~/go/bin/benchmark run --config tests/copilot-instructions-benchmark.yml
-#
-# Run a single prompt:
-#   ~/go/bin/benchmark run --config tests/copilot-instructions-benchmark.yml --prompt-id dont-guess-numbers
+#   benchmark run --config tests/copilot-instructions-benchmark.yml
 #
 # After running, inspect captures and compute token totals:
 #   cat ~/.benchmark/captures/*.jsonl | jq '[.usage] | add'

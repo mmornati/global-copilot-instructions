@@ -37,20 +37,15 @@ instructions:
 
 ## Prerequisites
 
-1. [ai-observer](https://github.com/dktunited/ai-observer) benchmark CLI:
+You need the `benchmark` CLI installed and LLM credentials configured:
 
-   ```bash
-   cd ~/Projects/ai-observer/proxy
-   go install ./cmd/benchmark
-   # Binary lands at ~/go/bin/benchmark
-   ```
+```bash
+# LLM endpoint and API key
+export LLM_ENDPOINT=<your-openai-compatible-endpoint>
+export LLM_API_KEY=<your-key>
+```
 
-2. LLM credentials — set via `~/.benchmark/.env` or export:
-
-   ```bash
-   export LLM_ENDPOINT=https://openrouter.ai/api/v1/chat/completions
-   export LLM_API_KEY=sk-or-v1-...
-   ```
+Or configure via `~/.benchmark/.env`.
 
 ## Running the Tests
 
@@ -58,13 +53,13 @@ instructions:
 cd /path/to/global-copilot-instructions
 
 # WITH instructions
-~/go/bin/benchmark run --config tests/copilot-instructions-benchmark.yml
+benchmark run --config tests/copilot-instructions-benchmark.yml
 
 # WITHOUT instructions (baseline)
-~/go/bin/benchmark run --config tests/copilot-instructions-baseline-benchmark.yml
+benchmark run --config tests/copilot-instructions-baseline-benchmark.yml
 
 # Single prompt re-run
-~/go/bin/benchmark run --config tests/copilot-instructions-benchmark.yml --prompt-id no-fabricated-apis
+benchmark run --config tests/copilot-instructions-benchmark.yml --prompt-id no-fabricated-apis
 ```
 
 ## Results (2026-06-24)
@@ -183,12 +178,12 @@ Look for:
 set -euo pipefail
 
 echo "=== WITH instructions ==="
-~/go/bin/benchmark run --config tests/copilot-instructions-benchmark.yml 2>&1 | tee /tmp/with.log
+benchmark run --config tests/copilot-instructions-benchmark.yml 2>&1 | tee /tmp/with.log
 WITH_ID=$(grep "Run ID:" /tmp/with.log | awk '{print $NF}')
 
 echo ""
 echo "=== WITHOUT instructions (baseline) ==="
-~/go/bin/benchmark run --config tests/copilot-instructions-baseline-benchmark.yml 2>&1 | tee /tmp/without.log
+benchmark run --config tests/copilot-instructions-baseline-benchmark.yml 2>&1 | tee /tmp/without.log
 WITHOUT_ID=$(grep "Run ID:" /tmp/without.log | awk '{print $NF}')
 
 echo ""
