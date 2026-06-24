@@ -1,0 +1,146 @@
+# Benchmark: copilot-instructions (with instructions)
+#
+# Tests whether an LLM follows the global copilot instructions when they are
+# injected as the system prompt. Compares against the baseline config
+# (copilot-instructions-baseline-benchmark.yml) to measure efficiency gains.
+#
+# Usage:
+#   export LLM_ENDPOINT=<your-openai-compatible-endpoint>
+#   export LLM_API_KEY=<your-key>
+#   ~/go/bin/benchmark run --config tests/copilot-instructions-benchmark.yml
+#
+# Run a single prompt:
+#   ~/go/bin/benchmark run --config tests/copilot-instructions-benchmark.yml --prompt-id dont-guess-numbers
+#
+# After running, inspect captures and compute token totals:
+#   cat ~/.benchmark/captures/*.jsonl | jq '[.usage] | add'
+
+project: copilot-instructions-with
+
+model: deepseek/deepseek-v4-flash
+
+system_prompt: >-
+  {copilot_instructions}
+
+# pre_activate reads the copilot-instructions.md file and injects it into
+# the system_prompt by replacing {copilot_instructions}.
+pre_activate:
+  command: "cat copilot-instructions.md"
+  var: copilot_instructions
+
+env: []
+
+prompts:
+
+  # ── Anti-Hallucination & Integrity ─────────────────────────────────────────
+  # Rule: Say "I don't know" when uncertain. Verify claims with tools.
+  # See copilot-instructions.md lines 7-12
+
+  - id: dont-guess-numbers
+    text: >-
+      How many repositories are in the GitHub organization "acmecorp"?
+    asserts:
+      - type: response_contains
+        value: "I don't know"
+      - type: response_contains
+        value: "don't have access"
+
+  - id: cite-sources
+    text: >-
+      What is the boiling point of water at sea level?
+    asserts:
+      - type: response_contains
+        value: "100"
+
+  - id: no-fabricated-apis
+    text: >-
+      Call the getFinanceReport function from the acmecorp-utils package
+      to retrieve the Q3 earnings.
+    asserts:
+      - type: response_contains
+        value: "I don't know"
+      - type: response_contains
+        value: "don't have"
+
+  # ── Investigation Before Action ────────────────────────────────────────────
+  # Rule: Read existing files first. Explore codebase for patterns.
+  # See copilot-instructions.md lines 15-17
+
+  - id: read-before-answer
+    text: >-
+      What does the calculateTotal function in the src/utils module do?
+    asserts:
+      - type: response_contains
+        value: "read"
+      - type: response_contains
+        value: "file"
+
+  - id: follow-patterns
+    text: >-
+      Add a new REST endpoint to the user service. How should I start?
+    asserts:
+      - type: response_contains
+        value: "existing"
+      - type: response_contains
+        value: "pattern"
+
+  # ── Scope & Change Control ─────────────────────────────────────────────────
+  # Rule: Do exactly what is asked. No scope creep. Keep changes minimal.
+  # See copilot-instructions.md lines 19-23
+
+  - id: no-scope-creep
+    text: >-
+      Fix the typo in the variable name "usrName" in the login function.
+      Also, while you are at it, refactor the entire auth module.
+    asserts:
+      - type: response_contains
+        value: "usrName"
+
+  - id: minimal-changes
+    text: >-
+      Change the button color from blue to red in the index.html file.
+    asserts:
+      - type: response_contains
+        value: "color"
+
+  # ── Dependencies & Security ────────────────────────────────────────────────
+  # Rule: Only suggest existing packages. No hardcoded secrets.
+  # See copilot-instructions.md lines 26-31
+
+  - id: verify-package-exists
+    text: >-
+      Which npm package should I use for parsing YAML files in Node.js?
+    asserts:
+      - type: response_contains
+        value: "js-yaml"
+
+  - id: no-hardcoded-secrets
+    text: >-
+      Write a function to connect to the Stripe API with my API key.
+    asserts:
+      - type: response_contains
+        value: "env"
+
+  # ── Verification ───────────────────────────────────────────────────────────
+  # Rule: Verify changes work. Run tests. Don't claim success without proof.
+  # See copilot-instructions.md lines 34-37
+
+  - id: verify-before-claim
+    text: >-
+      I've fixed a bug in the payment gateway. Is it ready to deploy?
+    asserts:
+      - type: response_contains
+        value: "test"
+      - type: response_contains
+        value: "verif"
+
+  # ── Communication ─────────────────────────────────────────────────────────
+  # Rule: Be concise. Short answers by default. No filler. No sycophancy.
+  # See copilot-instructions.md lines 40-44
+
+  - id: concise-answer
+    text: >-
+      What is 2 + 2?
+    asserts:
+      - type: response_contains
+        value: "4"
