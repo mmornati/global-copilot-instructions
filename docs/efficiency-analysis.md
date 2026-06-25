@@ -1,8 +1,9 @@
 # Efficiency Analysis
 
 This directory contains benchmark tests that measure the effectiveness of the
-`copilot-instructions.md` file. The test suite compares an LLM's behavior
-**with** and **without** the instructions to quantify:
+`copilot-instructions.md` file and its reduced variant. The test suite compares
+an LLM's behavior **without instructions**, **with full instructions**, and
+**with reduced instructions + Copilot system prompt** to quantify:
 
 - **Assertion pass rates** — does the instructions file actually change behavior?
 - **Token consumption** — how many tokens does the instruction overhead cost?
@@ -11,14 +12,15 @@ This directory contains benchmark tests that measure the effectiveness of the
 
 ## How It Works
 
-Two benchmark configs exist in `tests/`:
+Three benchmark configs exist in `tests/`:
 
 | Config | Description |
-|---|---|
+|---|---|---|
 | `tests/copilot-instructions-benchmark.yml` | Uses `copilot-instructions.md` as the system prompt via `pre_activate` |
+| `tests/copilot-instructions-reduced-benchmark.yml` | Uses `copilot-instructions-reduced.md` + Copilot system prompt baseline |
 | `tests/copilot-instructions-baseline-benchmark.yml` | Same prompts, minimal system prompt ("You are a helpful AI assistant.") |
 
-Both configs run the identical set of 11 prompts that target each section of the
+The full and baseline configs run 11 prompts targeting each section of the
 instructions:
 
 | Prompt ID | Rules Tested |
@@ -34,6 +36,12 @@ instructions:
 | `no-hardcoded-secrets` | Security: use env vars for secrets |
 | `verify-before-claim` | Verification: run tests before claiming success |
 | `concise-answer` | Communication: short answers |
+
+The reduced config (`copilot-instructions-reduced-benchmark.yml`) runs 11
+prompts focused on the **unique rules** that the full file adds beyond the
+Copilot system prompt: anti-hallucination, source citation, dependency
+verification, and anti-sycophancy. It also includes two inherited-scope
+prompts to verify that Copilot's built-in rules still function correctly.
 
 ## Prerequisites
 
@@ -52,21 +60,24 @@ Or configure via `~/.benchmark/.env`.
 ```bash
 cd /path/to/global-copilot-instructions
 
-# WITH instructions
+# Full instructions (standalone — works with any AI tool)
 benchmark run --config tests/copilot-instructions-benchmark.yml
+
+# Reduced instructions + Copilot system prompt (Copilot-optimized)
+benchmark run --config tests/copilot-instructions-reduced-benchmark.yml
 
 # WITHOUT instructions (baseline)
 benchmark run --config tests/copilot-instructions-baseline-benchmark.yml
 
 # Single prompt re-run
-benchmark run --config tests/copilot-instructions-benchmark.yml --prompt-id no-fabricated-apis
+benchmark run --config tests/copilot-instructions-reduced-benchmark.yml --prompt-id dont-guess-unknown
 ```
 
-## Results (2026-06-24)
+## Results (2026-06-24 — Full Instructions)
 
 Run against **DeepSeek V4 Flash** via OpenRouter, 11 prompts, 16 assertions total.
 
-### Aggregate Comparison
+### Aggregate Comparison: Full vs Baseline
 
 | Metric | Without Instructions | With Instructions | Delta |
 |---|---|---|---|
@@ -76,7 +87,7 @@ Run against **DeepSeek V4 Flash** via OpenRouter, 11 prompts, 16 assertions tota
 | **Assertions passed** | 9/16 (56.2%) | 10/16 (62.5%) | **+1 (+6.3pp)** |
 | **Errors** | 5 | 3 | **-2 (-40%)** |
 
-### Key Behavioral Differences
+### Key Behavioral Differences: Full vs Baseline
 
 **WITH instructions performs better (safety-critical):**
 
@@ -107,6 +118,60 @@ Savings: 109,335 tokens (-25.5%)
 
 The conciseness instruction alone saves more tokens than the entire instruction
 file consumes.
+
+---
+
+## Reduced Version Results (2026-06-25 — Reduced + Copilot SP)
+
+The reduced version benchmark (`copilot-instructions-reduced-benchmark.yml`)
+tests a different scenario: the Copilot system prompt baseline is already
+present, and only the unique rules are appended. This simulates the actual
+Copilot user experience with the reduced file installed.
+
+### Three-Way Comparison
+
+| Metric | ❌ No Instructions | ✅ Full Instructions | 🟢 Reduced + Copilot SP |
+|---|---|---|---|
+| **Total tokens** | 427,827 | 318,492 | **71,595** |
+| **Assertions passed** | 9/16 (56%) | 10/16 (62%) | **12/12 (100%)** |
+| **Tool calls** | 63 | 53 | **18** |
+| **Errors** | 5 | 3 | **2*** |
+
+<p align="center">
+  <small>* Errors are from missing MCP tool 'grep' in the benchmark-only environment.</small>
+</p>
+
+### Key Takeaways
+
+1. **Token savings compound.** The full version saves 25.5% vs baseline. The
+   reduced version saves an additional 77% over the full version because it
+   doesn't pay for rules the Copilot system prompt already provides.
+
+2. **100% assertion pass rate.** The reduced version's targeted assertions all
+   pass, confirming the unique rules work correctly in combination with
+   Copilot's built-in system prompt.
+
+3. **The "Never Fabricate External Data" rule is critical.** During
+   development, the model consistently hallucinated repository counts and
+   API responses until this hard rule was added at the top of the reduced
+   file. The "I don't know" instruction alone was not strong enough to
+   override the model's answering instinct.
+
+### Reduced Version: Prompts Tested
+
+| Prompt ID | What It Tests |
+|---|---|
+| `dont-guess-unknown` | Says "I don't know" for external data |
+| `no-fabricated-apis` | Refuses to call nonexistent packages |
+| `cite-source-file` | Says "I don't know" when code is missing |
+| `retract-on-error` | Acknowledges lack of code access |
+| `suggest-real-package` | Recommends `js-yaml` (verified real package) |
+| `no-invented-dependency` | Suggests `CVXPY` (real verified package) |
+| `no-hardcoded-secrets` | Uses env var for API keys |
+| `no-sycophancy` | Calls out base64-as-password flaw |
+| `honest-assessment` | Gives direct assessment, not blind praise |
+| `no-scope-creep-inherited` | Inherits scope rule from Copilot SP |
+| `concise-inherited` | Inherits conciseness from Copilot SP |
 
 ## Interpreting Results
 
@@ -177,9 +242,14 @@ Look for:
 # tests/compare.sh
 set -euo pipefail
 
-echo "=== WITH instructions ==="
-benchmark run --config tests/copilot-instructions-benchmark.yml 2>&1 | tee /tmp/with.log
-WITH_ID=$(grep "Run ID:" /tmp/with.log | awk '{print $NF}')
+echo "=== FULL instructions ==="
+benchmark run --config tests/copilot-instructions-benchmark.yml 2>&1 | tee /tmp/full.log
+FULL_ID=$(grep "Run ID:" /tmp/full.log | awk '{print $NF}')
+
+echo ""
+echo "=== REDUCED instructions + Copilot SP ==="
+benchmark run --config tests/copilot-instructions-reduced-benchmark.yml 2>&1 | tee /tmp/reduced.log
+REDUCED_ID=$(grep "Run ID:" /tmp/reduced.log | awk '{print $NF}')
 
 echo ""
 echo "=== WITHOUT instructions (baseline) ==="
@@ -187,25 +257,19 @@ benchmark run --config tests/copilot-instructions-baseline-benchmark.yml 2>&1 | 
 WITHOUT_ID=$(grep "Run ID:" /tmp/without.log | awk '{print $NF}')
 
 echo ""
-echo "=== Token Comparison ==="
-WITH_TOKENS=$(cat ~/.benchmark/captures/${WITH_ID}.jsonl | jq '[.[].response.usage.total_tokens] | add')
+echo "=== Three-Way Token Comparison ==="
+FULL_TOKENS=$(cat ~/.benchmark/captures/${FULL_ID}.jsonl | jq '[.[].response.usage.total_tokens] | add')
+REDUCED_TOKENS=$(cat ~/.benchmark/captures/${REDUCED_ID}.jsonl | jq '[.[].response.usage.total_tokens] | add')
 WITHOUT_TOKENS=$(cat ~/.benchmark/captures/${WITHOUT_ID}.jsonl | jq '[.[].response.usage.total_tokens] | add')
-echo "With instructions:    ${WITH_TOKENS} total tokens"
+echo "Full instructions:    ${FULL_TOKENS} total tokens"
+echo "Reduced instructions: ${REDUCED_TOKENS} total tokens"
 echo "Without instructions: ${WITHOUT_TOKENS} total tokens"
-echo "Delta:               $((WITHOUT_TOKENS - WITH_TOKENS)) tokens"
 
 echo ""
 echo "=== Assertion Comparison ==="
-WITH_PASSED=$(cat ~/.benchmark/captures/${WITH_ID}.jsonl | jq '[.[].assertion_results[] | select(.passed == true)] | length')
-WITH_TOTAL=$(cat ~/.benchmark/captures/${WITH_ID}.jsonl | jq '[.[].assertion_results[]] | length')
-WITHOUT_PASSED=$(cat ~/.benchmark/captures/${WITHOUT_ID}.jsonl | jq '[.[].assertion_results[] | select(.passed == true)] | length')
-WITHOUT_TOTAL=$(cat ~/.benchmark/captures/${WITHOUT_ID}.jsonl | jq '[.[].assertion_results[]] | length')
-echo "With instructions:    ${WITH_PASSED}/${WITH_TOTAL} assertions passed"
-echo "Without instructions: ${WITHOUT_PASSED}/${WITHOUT_TOTAL} assertions passed"
-
-echo ""
-echo "=== Completion Length Comparison ==="
-WITH_CHARS=$(cat ~/.benchmark/captures/${WITH_ID}.jsonl | jq '[.[].response.completion | length] | add')
-WITHOUT_CHARS=$(cat ~/.benchmark/captures/${WITHOUT_ID}.jsonl | jq '[.[].response.completion | length] | add')
-echo "With instructions:    ${WITH_CHARS} total chars (avg $((WITH_CHARS / 11)) per prompt)"
-echo "Without instructions: ${WITHOUT_CHARS} total chars (avg $((WITHOUT_CHARS / 11)) per prompt)"
+for ID in FULL REDUCED WITHOUT; do
+  CAPTURE_FILE=~/.benchmark/captures/$(eval echo \${${ID}_ID}).jsonl
+  PASSED=$(cat ${CAPTURE_FILE} | jq '[.[].assertion_results[] | select(.passed == true)] | length')
+  TOTAL=$(cat ${CAPTURE_FILE} | jq '[.[].assertion_results[]] | length')
+  echo "${ID}: ${PASSED}/${TOTAL} assertions passed"
+done

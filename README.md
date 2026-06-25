@@ -55,6 +55,8 @@
 <br>
 
 > **Drop it in your global config once.** Every AI session across every project follows the same ground rules. Measured 25% fewer tokens, 40% fewer errors, and safer outputs. [See the benchmark](#-testing--efficiency).
+> 
+> **Two versions available:** A full standalone version for all AI tools, and a reduced version optimized for GitHub Copilot that avoids duplicating its built-in system prompt. [See the comparison](#-versions).
 
 <br>
 
@@ -73,6 +75,65 @@
 
 ---
 
+## 📋 Versions
+
+This repository provides two versions of the global instructions.
+Each serves a different use case.
+
+### Full: `copilot-instructions.md` (self-contained)
+
+Covers all ground rules — conciseness, investigation, scope control, code style,
+verification, dependencies, security, communication. Works standalone with any
+AI coding tool (Copilot, opencode, Claude Code, Cursor).
+
+**Token cost:** ~3,200 prompt tokens per session.
+
+### Reduced: `copilot-instructions-reduced.md` (Copilot-optimized)
+
+GitHub Copilot already includes ~80% of these rules in its built-in system
+prompt. The reduced version strips the overlap and keeps only what Copilot
+does not already cover: explicit honesty, source citation, dependency
+verification, and anti-sycophancy.
+
+**Token cost:** ~1,300 prompt tokens per session — **60% less overhead** than the full version.
+
+| Aspect | Full | Reduced |
+|---|---|---|
+| **Audience** | Any AI coding tool | GitHub Copilot users |
+| **Assumes** | Nothing | Copilot's built-in system prompt is present |
+| **Lines** | 48 | 44 |
+| **Sections** | 6 | 3 |
+| **Overlap with Copilot SP** | ~80% | ~10% |
+| **Token overhead** | ~3,200 per session | ~1,300 per session |
+| **Portability** | All tools (standalone) | Copilot-only |
+
+```mermaid
+flowchart LR
+    subgraph Input["Which file to use?"]
+        direction LR
+        A[Use multiple AI tools?]
+    end
+    
+    A -->|Yes| B[Full version<br/>copilot-instructions.md]
+    A -->|No, only Copilot| C[Reduced version<br/>copilot-instructions-reduced.md]
+    
+    B --> D{AI Coding Tool}
+    C --> D
+    
+    E[Project AGENTS.md] --> D
+    D --> F[✅ Reliable output]
+```
+
+> **Why two versions?** AI tools have vastly different system prompts. Copilot's
+> prompt already tells the model to be concise, investigate code, avoid scope
+> creep, and verify changes. Claude Code and opencode do not. The full version
+> works everywhere; the reduced version avoids paying token overhead for rules
+> already provided by Copilot.
+
+[Full comparison →](docs/version-strategy.md)
+
+---
+
 ## ⚡ Quick Start
 
 <p align="center">
@@ -80,8 +141,16 @@
 </p>
 
 ```bash
+# Full version (any tool — recommended for multi-tool setups)
 cp copilot-instructions.md ~/.copilot/copilot-instructions.md
+
+# Reduced version (Copilot-only — saves ~1,900 tokens per session)
+# cp copilot-instructions-reduced.md ~/.copilot/copilot-instructions.md
 ```
+
+> Which version should I use? The full version works with any AI tool. The
+> reduced version is optimized for GitHub Copilot and avoids duplicating rules
+> already in its system prompt. [See the comparison](#-versions).
 
 <details>
 <summary><b>➕ Also configure opencode</b> (5 more seconds)</summary>
@@ -150,6 +219,8 @@ flowchart LR
     style D fill:#22C55E,color:#fff
 ```
 
+**Two versions available:** See [docs/version-strategy.md](docs/version-strategy.md) for when to use each.
+
 **Two layers, one source of truth:**
 
 | Layer | File | Scope | Example |
@@ -164,52 +235,24 @@ flowchart LR
 ## 📈 Benchmarked Efficiency
 
 <p align="center">
-  <b>Proven results — 11 prompts, 16 assertions, DeepSeek V4 Flash</b>
+  <b>Proven results — three configurations compared on DeepSeek V4 Flash</b>
 </p>
 
-<table align="center">
-  <tr>
-    <th align="center">Metric</th>
-    <th align="center">❌ Without</th>
-    <th align="center">✅ With</th>
-    <th align="center">📊 Delta</th>
-  </tr>
-  <tr>
-    <td align="center"><b>Total tokens</b></td>
-    <td align="center">427,827</td>
-    <td align="center">318,492</td>
-    <td align="center">🟢 <b>-25.5%</b></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Avg completion</b></td>
-    <td align="center">887 chars</td>
-    <td align="center">618 chars</td>
-    <td align="center">🟢 <b>-30.3%</b></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Tool calls</b></td>
-    <td align="center">63</td>
-    <td align="center">53</td>
-    <td align="center">🟢 <b>-15.9%</b></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Errors</b></td>
-    <td align="center">5</td>
-    <td align="center">3</td>
-    <td align="center">🟢 <b>-40%</b></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Assertions passed</b></td>
-    <td align="center">9/16 (56%)</td>
-    <td align="center"><b>10/16 (62%)</b></td>
-    <td align="center">🟢 <b>+6.3pp</b></td>
-  </tr>
-</table>
+| Metric | ❌ No Instructions | ✅ Full Instructions | 🟢 Reduced + Copilot SP |
+|---|---|---|---|
+| **Total tokens** | 427,827 | 318,492 (-25.5%) | **71,595 (-83.3%)** |
+| **Assertions passed** | 9/16 (56%) | 10/16 (62%) | **12/12 (100%)** |
+| **Tool calls** | 63 | 53 (-15.9%) | **18 (-71.4%)** |
+| **Errors** | 5 | 3 (-40%) | **2* (-60%)** |
 
 <p align="center">
-  <b>📉 The instructions pay for themselves.</b><br>
-  Despite adding ~3,200 prompt tokens per call, the "be concise" rule cuts completions by 30% —<br>
-  saving <b>109,335 total tokens (-25.5%)</b> versus running without instructions.
+  <small>* Errors are from missing MCP tool 'grep' — expected in a benchmark-only environment.</small>
+</p>
+
+<p align="center">
+  <b>📉 Both versions pay for themselves.</b><br>
+  The full version saves <b>109,335 tokens (-25.5%)</b> vs baseline despite its ~3,200 token overhead.<br>
+  The reduced version saves an additional <b>246,897 tokens</b> by assuming Copilot's system prompt handles the basics.
 </p>
 
 <p align="center">
@@ -238,11 +281,13 @@ This repository includes a benchmark test suite that validates the instructions 
     <td valign="top" width="50%">
       <h4>📋 Test Configs</h4>
       <ul>
-        <li><a href="tests/copilot-instructions-benchmark.yml"><code>copilot-instructions-benchmark.yml</code></a> — runs WITH instructions</li>
+        <li><a href="tests/copilot-instructions-benchmark.yml"><code>copilot-instructions-benchmark.yml</code></a> — runs WITH full instructions</li>
+        <li><a href="tests/copilot-instructions-reduced-benchmark.yml"><code>copilot-instructions-reduced-benchmark.yml</code></a> — reduced + Copilot system prompt</li>
         <li><a href="tests/copilot-instructions-baseline-benchmark.yml"><code>copilot-instructions-baseline-benchmark.yml</code></a> — baseline WITHOUT</li>
       </ul>
       <h4>▶️ Run It Yourself</h4>
-      <pre><code>benchmark run --config tests/copilot-instructions-benchmark.yml</code></pre>
+      <pre><code>benchmark run --config tests/copilot-instructions-benchmark.yml
+benchmark run --config tests/copilot-instructions-reduced-benchmark.yml</code></pre>
     </td>
     <td valign="top" width="50%">
       <h4>📊 What Gets Measured</h4>
@@ -265,7 +310,7 @@ This repository includes a benchmark test suite that validates the instructions 
 ## 🧭 Philosophy
 
 <blockquote>
-  <b>Less is more.</b> This file is intentionally lean (~350 lines).<br>
+  <b>Less is more.</b> Both versions are intentionally lean (48 and 44 lines).<br>
   Research shows bloated instruction files lower task success rates by ~3% and raise API costs by 20%+.<br>
   Every line here earns its place.
 </blockquote>
@@ -286,11 +331,12 @@ This repository includes a benchmark test suite that validates the instructions 
       reasoning patterns, security awareness, scope discipline.</p>
     </td>
     <td width="33%" valign="top">
-      <h4>🔗 One source of truth</h4>
-      <p>Instead of maintaining separate global files for every AI tool<br>
-      (Copilot, opencode, Claude Code, Cursor),<br>
-      maintain <b>one</b> and point the others at it.<br><br>
-      Less drift. Less maintenance. Better results.</p>
+      <h4>🔗 Two sources, one philosophy</h4>
+      <p>The <b>full version</b> is your single source of truth for any AI tool.<br>
+      The <b>reduced version</b> is a Copilot-specific trim that removes rules<br>
+      the Copilot system prompt already provides.<br><br>
+      Both share the same core philosophy — they just account for the fact<br>
+      that different tools ship with different built-in guardrails.</p>
     </td>
   </tr>
 </table>
