@@ -5,11 +5,11 @@ It applies to ALL projects you work on.
 
 ## Anti-Hallucination & Integrity
 
-- Say "I don't know" when uncertain. Never fabricate, guess, or bluff. Saying "I don't know" is always better than giving wrong information.
-- Use Read, Grep, and Bash tools to verify ALL claims about files, APIs, or project state before asserting them. Never answer from memory or training data when a tool can check — your memory of code is often wrong, the file is always right.
-- Cite the source file and line number when stating a fact about code. No source = no claim. If you cannot point to where you learned it, you are probably making it up.
-- If you realize mid-response that you are unsure or wrong, stop and retract immediately. Do not finish the sentence confidently. Say "Actually, I am not sure about that — let me check."
-- Do not build on unverified assumptions. One guess stacked on another creates confidently wrong nonsense. Verify the foundation before building on it.
+- Never fabricate facts, tool results, or citations. Uncertainty is a reason to investigate, not an automatic refusal.
+- For claims about files, APIs, project state, or live external data, inspect the available authorized tools and relevant evidence before answering. Do not assume external access is unavailable; discover deferred tools when supported.
+- Cite only sources actually consulted: file and line for code, documentation or tool results for external facts. Distinguish retrieved facts from calculations, inferences, and hypotheses.
+- If retrieval fails or access is unavailable, explain the specific limitation and what remains unknown. Say "I don't know" only when the answer cannot be established from available evidence; still provide any supported partial answer.
+- If a claim proves wrong, correct it explicitly and verify the replacement. Do not build conclusions on unverified assumptions or repeatedly retry a permission failure.
 
 ## Investigation Before Action
 
@@ -38,6 +38,12 @@ It applies to ALL projects you work on.
 - If verification fails and the cause is unclear, stop and report the failure. Do not make blind follow-up fixes — investigate first.
 - Never swallow errors. Ensure errors are handled gracefully, logged appropriately, and surfaced to the developer when needed.
 - If the change involves destructive operations (deletion, schema changes, data migration), flag them explicitly before executing.
+
+## Development Cycle
+
+- When entering user-authorized implementation, load the `development-cycle` skill if installed. Do not start implementation for planning or explanation-only requests.
+- Apply the cycle only as coordinator; worker agents must not recursively invoke it. If the skill is unavailable, follow these investigation, scope, and verification rules directly.
+- Loading the skill is not authorization to launch a Dynamic Workflow, install an extension, or commit, push, or open a pull request.
 
 ## Communication
 

@@ -1,13 +1,20 @@
-# Efficiency Analysis
+# Efficiency Analysis and Evaluation Limits
 
-This directory contains benchmark tests that measure the effectiveness of the
+The numerical results below are historical reports from June 2026, before the
+evidence-first and development-cycle changes. Raw captures are not included
+in this repository, and no new model runs are claimed. The reduced suite uses
+different prompts from the full/baseline suites; comparing their token totals
+does not isolate the effect of the instructions.
+
+The repository contains benchmark tests that exercise the
 `copilot-instructions.md` file and its reduced variant. The test suite compares
 an LLM's behavior **without instructions**, **with full instructions**, and
 **with reduced instructions + Copilot system prompt** to quantify:
 
 - **Assertion pass rates** — does the instructions file actually change behavior?
 - **Token consumption** — how many tokens does the instruction overhead cost?
-- **Hallucination resistance** — does the model say "I don't know" more often?
+- **Evidence handling** — does the model answer when supported and explain
+  specific limitations when evidence is unavailable?
 - **Conciseness** — does the model produce shorter, more direct answers?
 
 ## How It Works
@@ -20,12 +27,14 @@ Three benchmark configs exist in `tests/`:
 | `tests/copilot-instructions-reduced-benchmark.yml` | Uses `copilot-instructions-reduced.md` + Copilot system prompt baseline |
 | `tests/copilot-instructions-baseline-benchmark.yml` | Same prompts, minimal system prompt ("You are a helpful AI assistant.") |
 
-The full and baseline configs run 11 prompts targeting each section of the
-instructions:
+The full and baseline configs run matching prompts targeting each section of
+the instructions, including synthetic missing, supplied, and denied evidence:
 
 | Prompt ID | Rules Tested |
 |---|---|
-| `dont-guess-numbers` | Anti-Hallucination: say "I don't know" |
+| `dont-guess-numbers` | Explain missing evidence without inventing a count |
+| `answer-from-evidence` | Answer from a complete supplied fixture with attribution |
+| `explain-access-failure` | Explain a supplied 403 without claiming a count |
 | `cite-sources` | Anti-Hallucination: provide factual answers |
 | `no-fabricated-apis` | Anti-Hallucination: don't invent API functions |
 | `read-before-answer` | Investigation: read code before explaining |
@@ -37,11 +46,18 @@ instructions:
 | `verify-before-claim` | Verification: run tests before claiming success |
 | `concise-answer` | Communication: short answers |
 
-The reduced config (`copilot-instructions-reduced-benchmark.yml`) runs 11
-prompts focused on the **unique rules** that the full file adds beyond the
+The reduced config (`copilot-instructions-reduced-benchmark.yml`) runs
+prompts focused on the **additional rules** supplied alongside the
 Copilot system prompt: anti-hallucination, source citation, dependency
 verification, and anti-sycophancy. It also includes two inherited-scope
 prompts to verify that Copilot's built-in rules still function correctly.
+
+The current configs no longer require "I don't know" or a blanket claim of no
+access. Their string assertions are smoke checks, not proof of honest tool
+use: even `UNVERIFIED:` can mask an unhelpful refusal. Review the actual
+response and tool traces using [behavior-regressions.md](../tests/behavior-regressions.md).
+For multi-agent work, include implementation, review, remediation, and retries
+in any efficiency comparison.
 
 ## Prerequisites
 
@@ -73,7 +89,7 @@ benchmark run --config tests/copilot-instructions-baseline-benchmark.yml
 benchmark run --config tests/copilot-instructions-reduced-benchmark.yml --prompt-id dont-guess-unknown
 ```
 
-## Results (2026-06-24 — Full Instructions)
+## Historical Results (2026-06-24 — Full Instructions)
 
 Run against **DeepSeek V4 Flash** via OpenRouter, 11 prompts, 16 assertions total.
 
@@ -106,9 +122,8 @@ Run against **DeepSeek V4 Flash** via OpenRouter, 11 prompts, 16 assertions tota
 
 ### Key Insight: Instruction Overhead vs Savings
 
-Although the instructions add ~3,200 prompt tokens per call, **total tokens
-decrease by 25.5%** because the conciseness rule shortens completions by 30%.
-The instructions pay for themselves:
+The original report estimated ~3,200 prompt tokens of overhead and attributed
+the reported 25.5% total reduction to shorter completions:
 
 ```
 Without: 427,827 total tokens
@@ -116,12 +131,12 @@ With:    318,492 total tokens
 Savings: 109,335 tokens (-25.5%)
 ```
 
-The conciseness instruction alone saves more tokens than the entire instruction
-file consumes.
+These totals alone do not establish which instruction caused a difference,
+and the token-overhead estimates were not re-measured for the current files.
 
 ---
 
-## Reduced Version Results (2026-06-25 — Reduced + Copilot SP)
+## Historical Reduced Results (2026-06-25 — Reduced + Copilot SP)
 
 The reduced version benchmark (`copilot-instructions-reduced-benchmark.yml`)
 tests a different scenario: the Copilot system prompt baseline is already
@@ -141,30 +156,29 @@ Copilot user experience with the reduced file installed.
   <small>* Errors are from missing MCP tool 'grep' in the benchmark-only environment.</small>
 </p>
 
-### Key Takeaways
+### Why these results do not validate the current policy
 
-1. **Token savings compound.** The full version saves 25.5% vs baseline. The
-   reduced version saves an additional 77% over the full version because it
-   doesn't pay for rules the Copilot system prompt already provides.
+The old reduced instructions prohibited external answers even when authorized
+tools could have established them, and their assertions rewarded that refusal.
+A reported 100% keyword pass rate cannot establish useful factual behavior.
+The suites also differed, so their token totals do not prove that the reduced
+instructions caused a 77% saving.
 
-2. **100% assertion pass rate.** The reduced version's targeted assertions all
-   pass, confirming the unique rules work correctly in combination with
-   Copilot's built-in system prompt.
+The replacement rule forbids fabricated data, not retrieval or clearly
+identified calculation. Use the current fixtures and tool-trace checks before
+making new quality or efficiency claims.
 
-3. **The "Never Fabricate External Data" rule is critical.** During
-   development, the model consistently hallucinated repository counts and
-   API responses until this hard rule was added at the top of the reduced
-   file. The "I don't know" instruction alone was not strong enough to
-   override the model's answering instinct.
-
-### Reduced Version: Prompts Tested
+### Current Reduced Version: Evidence Cases
 
 | Prompt ID | What It Tests |
 |---|---|
-| `dont-guess-unknown` | Says "I don't know" for external data |
-| `no-fabricated-apis` | Refuses to call nonexistent packages |
-| `cite-source-file` | Says "I don't know" when code is missing |
-| `retract-on-error` | Acknowledges lack of code access |
+| `dont-guess-unknown` | Explains missing external evidence |
+| `answer-from-evidence` | Answers from supplied synthetic data with attribution |
+| `explain-access-failure` | Explains a supplied 403 without inventing a count |
+| `no-fabricated-apis` | Does not pretend an unverified package was executed |
+| `cite-source-file` | Explains which source is missing |
+| `answer-from-source` | Answers from a supplied excerpt with a file reference |
+| `retract-on-error` | Corrects an earlier timeout claim against a supplied excerpt |
 | `suggest-real-package` | Recommends `js-yaml` (verified real package) |
 | `no-invented-dependency` | Suggests `CVXPY` (real verified package) |
 | `no-hardcoded-secrets` | Uses env var for API keys |
@@ -180,8 +194,8 @@ Copilot user experience with the reduced file installed.
 After each run, the CLI prints per-prompt assertion results:
 
 ```
-[1/11] "How many repositories are in the GitHub organization..."
-  ✗ response_contains: I don't know
+[1/13] "How many repositories are in the GitHub organization..."
+  ✗ response_contains: UNVERIFIED:
   Score: 0.0 / Assertions: 0 passed, 1 failed
 ```
 
@@ -231,9 +245,9 @@ cat ~/.benchmark/captures/<run-id>.jsonl | \
   jq -s '.[$((PROMPT_NUM - 1))].response.completion'
 ```
 
-Look for:
-- **WITH instructions**: says "I don't know", uses env vars, resists scope creep
-- **WITHOUT instructions**: may hallucinate, suggest insecure patterns, be verbose
+Look for supported answers, specific limitations, actual source attribution,
+safe secret handling, and respected scope in both runs. Inspect traces rather
+than assuming a refusal is correct or a baseline answer is wrong.
 
 ## Full Comparison Script
 

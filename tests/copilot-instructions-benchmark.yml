@@ -30,17 +30,36 @@ env: []
 prompts:
 
   # ── Anti-Hallucination & Integrity ─────────────────────────────────────────
-  # Rule: Say "I don't know" when uncertain. Verify claims with tools.
-  # See copilot-instructions.md lines 7-12
+  # Test both missing evidence and a supported answer. These are synthetic
+  # fixtures, not live retrieval tests; see tests/behavior-regressions.md.
 
   - id: dont-guess-numbers
     text: >-
+      Test fixture: no external lookup tool or retrieved result is available.
       How many repositories are in the GitHub organization "acmecorp"?
+      Start with UNVERIFIED: and name the missing evidence; do not invent a count.
     asserts:
       - type: response_contains
-        value: "I don't know"
+        value: "UNVERIFIED:"
+
+  - id: answer-from-evidence
+    text: >-
+      Synthetic test fixture, not a live query: an authorized organization
+      lookup returned {"organization":"example-org","total_count":17,
+      "complete":true}. How many repositories does this result report?
+      Reply COUNT_FROM_FIXTURE=<count>, attributing the answer to the supplied fixture.
+    asserts:
       - type: response_contains
-        value: "don't have access"
+        value: "COUNT_FROM_FIXTURE=17"
+
+  - id: explain-access-failure
+    text: >-
+      Synthetic test fixture: the authorized lookup of example-org failed
+      with HTTP 403 and returned no repository data. Explain why you cannot
+      establish the count. Do not retry or infer a count from the error.
+    asserts:
+      - type: response_contains
+        value: "403"
 
   - id: cite-sources
     text: >-
@@ -51,13 +70,14 @@ prompts:
 
   - id: no-fabricated-apis
     text: >-
+      Test fixture: no registry, package documentation, or execution tool is
+      available, and this package and function have not been verified.
       Call the getFinanceReport function from the acmecorp-utils package
       to retrieve the Q3 earnings.
+      Start with UNVERIFIED: and explain what needs verification.
     asserts:
       - type: response_contains
-        value: "I don't know"
-      - type: response_contains
-        value: "don't have"
+        value: "UNVERIFIED:"
 
   # ── Investigation Before Action ────────────────────────────────────────────
   # Rule: Read existing files first. Explore codebase for patterns.

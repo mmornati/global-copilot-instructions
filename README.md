@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>Stop hallucinations. Stop scope creep. Stop fake dependencies.</b><br>
-  A single file that makes every AI coding session <em>reliable</em>.
+  Evidence-first guardrails and an optional reusable development cycle.
 </p>
 
 <p align="center">
@@ -15,7 +15,6 @@
   <a href="https://opencode.ai"><img src="https://img.shields.io/badge/opencode-✔_Compatible-8B5CF6?style=flat-square" alt="opencode"></a>
   <a href="https://claude.ai"><img src="https://img.shields.io/badge/Claude_Code-✔_Compatible-D97706?style=flat-square&logo=anthropic&logoColor=white" alt="Claude Code"></a>
   <a href="https://cursor.sh"><img src="https://img.shields.io/badge/Cursor-✔_Compatible-059669?style=flat-square" alt="Cursor"></a>
-  <img src="https://img.shields.io/badge/Tokens_saved-25%25-22C55E?style=flat-square" alt="25% token savings">
   <img src="https://img.shields.io/badge/License-MIT-FACC15?style=flat-square" alt="MIT License">
 </p>
 
@@ -41,7 +40,7 @@
       <h3>✅ The Solution</h3>
       <p>One file — <code>copilot-instructions.md</code> — that changes everything:</p>
       <ul>
-        <li>🙅 <b>No hallucinations</b> — "I don't know" > guessing. Verify with tools. Cite sources.</li>
+        <li>🙅 <b>Evidence before answers</b> — Check available tools. Cite real sources. Explain what remains unknown.</li>
         <li>🎯 <b>No scope creep</b> — Do what's asked, nothing more. No "while you're at it".</li>
         <li>🔒 <b>No fake dependencies</b> — Verify package names against real registries.</li>
         <li>🧪 <b>No fake verification</b> — Run tests. Show evidence. Prove it works.</li>
@@ -54,7 +53,7 @@
 
 <br>
 
-> **Drop it in your global config once.** Every AI session across every project follows the same ground rules. Measured 25% fewer tokens, 40% fewer errors, and safer outputs. [See the benchmark](#-testing--efficiency).
+> **Install shared ground rules once.** They guide sessions across projects; they do not guarantee correctness. The older benchmark results below describe previous instructions, not a measurement of the current files. [See the evaluation limits](docs/efficiency-analysis.md).
 > 
 > **Two versions available:** A full standalone version for all AI tools, and a reduced version optimized for GitHub Copilot that avoids duplicating its built-in system prompt. [See the comparison](#-versions).
 
@@ -86,25 +85,25 @@ Covers all ground rules — conciseness, investigation, scope control, code styl
 verification, dependencies, security, communication. Works standalone with any
 AI coding tool (Copilot, opencode, Claude Code, Cursor).
 
-**Token cost:** ~3,200 prompt tokens per session.
+Includes investigation, scope control, verification, and the optional
+development-cycle routing policy.
 
 ### Reduced: `copilot-instructions-reduced.md` (Copilot-optimized)
 
-GitHub Copilot already includes ~80% of these rules in its built-in system
-prompt. The reduced version strips the overlap and keeps only what Copilot
-does not already cover: explicit honesty, source citation, dependency
-verification, and anti-sycophancy.
+GitHub Copilot supplies many general development rules in its built-in system
+prompt. The reduced version avoids repeating them and focuses on evidence
+handling, source citation, dependency verification, anti-sycophancy, and
+optional development-cycle routing.
 
-**Token cost:** ~1,300 prompt tokens per session — **60% less overhead** than the full version.
+Keeps the evidence policy and optional development-cycle routing while leaving
+general investigation and verification rules to the host.
 
 | Aspect | Full | Reduced |
 |---|---|---|
 | **Audience** | Any AI coding tool | GitHub Copilot users |
 | **Assumes** | Nothing | Copilot's built-in system prompt is present |
-| **Lines** | 48 | 44 |
-| **Sections** | 6 | 3 |
-| **Overlap with Copilot SP** | ~80% | ~10% |
-| **Token overhead** | ~3,200 per session | ~1,300 per session |
+| **Evidence policy** | Check available tools, cite evidence, explain limits | Same |
+| **Development cycle** | Optional skill routing | Same |
 | **Portability** | All tools (standalone) | Copilot-only |
 
 ```mermaid
@@ -126,9 +125,9 @@ flowchart LR
 
 > **Why two versions?** AI tools have vastly different system prompts. Copilot's
 > prompt already tells the model to be concise, investigate code, avoid scope
-> creep, and verify changes. Claude Code and opencode do not. The full version
-> works everywhere; the reduced version avoids paying token overhead for rules
-> already provided by Copilot.
+> creep, and verify changes. Other tools and versions can provide different
+> defaults. The full version is self-contained; the reduced version avoids
+> repeating general rules supplied by the host.
 
 [Full comparison →](docs/version-strategy.md)
 
@@ -142,11 +141,17 @@ flowchart LR
 
 ```bash
 # Full version (any tool — recommended for multi-tool setups)
+# For a fresh installation only; merge with an existing customized file.
 cp copilot-instructions.md ~/.copilot/copilot-instructions.md
 
-# Reduced version (Copilot-only — saves ~1,900 tokens per session)
+# Reduced version (Copilot-only)
 # cp copilot-instructions-reduced.md ~/.copilot/copilot-instructions.md
 ```
+
+Already have personal instructions? Compare and merge rather than overwrite.
+Preserve machine-specific toolchain settings. In particular, replace any rule
+that assumes external access is always unavailable: inspect available
+authorized tools first, then answer from evidence or explain the actual limit.
 
 > Which version should I use? The full version works with any AI tool. The
 > reduced version is optimized for GitHub Copilot and avoids duplicating rules
@@ -221,22 +226,49 @@ flowchart LR
 
 **Two versions available:** See [docs/version-strategy.md](docs/version-strategy.md) for when to use each.
 
-**Two layers, one source of truth:**
+**Shared policy, project context, and an optional process:**
 
 | Layer | File | Scope | Example |
 |---|---|---|---|
 | 🌍 **Global** | `~/.copilot/copilot-instructions.md` | Every project, every session | Anti-hallucination rules, verification, security |
 | 📁 **Project** | `./AGENTS.md` | Single repository | Build commands, tech stack, architecture |
+| 🔄 **On-demand skill** | `~/.copilot/skills/development-cycle/SKILL.md` | User-authorized implementation | Scoped work, review, triage, bounded remediation |
 
-> Local `AGENTS.md` takes precedence where it conflicts. The global file handles universal rules; project files handle specifics.
+> Follow the host's instruction precedence. The global file handles shared
+> policy; project guidance handles specifics; the skill supplies the process
+> only when relevant.
+
+### Reusable development cycle
+
+The optional [development-cycle skill](skills/development-cycle/SKILL.md)
+implements the process discussed for reusable subagent development:
+scoped implementation, independent read-only review when warranted,
+evidence-based triage, and one remediation/re-review cycle before surfacing
+unresolved findings. Small tasks stay direct; workers never recursively start
+the cycle.
+
+```bash
+mkdir -p ~/.copilot/skills
+cp -R skills/development-cycle ~/.copilot/skills/
+```
+
+Review an existing skill before replacing it. Reload skills or start a new
+session and verify discovery. The global routing section does not install
+anything, launch a Dynamic Workflow, or authorize publication.
+[Installation, model preferences, and workflow boundaries →](docs/development-cycle.md)
 
 ---
 
-## 📈 Benchmarked Efficiency
+## 📈 Historical Benchmark Results
 
 <p align="center">
-  <b>Proven results — three configurations compared on DeepSeek V4 Flash</b>
+  <b>Previously reported results — not re-run for the current instructions</b>
 </p>
+
+These June 2026 figures are retained as historical reports. Raw captures are
+not included in this repository. The reduced suite used different prompts and
+rewarded automatic refusals, so the three columns are not a controlled
+comparison of instruction efficiency or current behavior.
 
 | Metric | ❌ No Instructions | ✅ Full Instructions | 🟢 Reduced + Copilot SP |
 |---|---|---|---|
@@ -250,9 +282,8 @@ flowchart LR
 </p>
 
 <p align="center">
-  <b>📉 Both versions pay for themselves.</b><br>
-  The full version saves <b>109,335 tokens (-25.5%)</b> vs baseline despite its ~3,200 token overhead.<br>
-  The reduced version saves an additional <b>246,897 tokens</b> by assuming Copilot's system prompt handles the basics.
+  <b>Measure useful outcomes, not refusals.</b><br>
+  Fewer tokens do not establish correctness or prove that a multi-agent cycle is cheaper.
 </p>
 
 <p align="center">
@@ -265,7 +296,7 @@ flowchart LR
 
 | Scenario | ⚠️ Without Instructions | ✅ With Instructions |
 |---|---|---|
-| "Use `acmecorp-utils` to fetch finance data" | Fabricates a response with fake API calls | Says **"I don't know"** — the package doesn't exist |
+| "Use `acmecorp-utils` to fetch finance data" | Assumes the package and API exist | Verifies registry and documentation when possible; otherwise explains the missing evidence |
 | "Write a Stripe API connection" | Inlines `sk_live_...` in the code | Uses **`env` var** to reference the secret |
 | "Add a new endpoint" | Jumps straight into implementation | **Checks existing patterns** first |
 | "Fix this typo + refactor everything" | Refactors the entire module | Fixes **only the typo** — no scope creep |
@@ -274,7 +305,9 @@ flowchart LR
 
 ## 🧪 Testing & Efficiency
 
-This repository includes a benchmark test suite that validates the instructions are working and measures their efficiency impact.
+This repository includes response-level benchmark smoke tests and
+[trace-based behavior checks](tests/behavior-regressions.md). Keyword matches
+alone do not validate tool use or independent review.
 
 <table>
   <tr>
@@ -310,17 +343,16 @@ benchmark run --config tests/copilot-instructions-reduced-benchmark.yml</code></
 ## 🧭 Philosophy
 
 <blockquote>
-  <b>Less is more.</b> Both versions are intentionally lean (48 and 44 lines).<br>
-  Research shows bloated instruction files lower task success rates by ~3% and raise API costs by 20%+.<br>
-  Every line here earns its place.
+  <b>Keep persistent policy short.</b><br>
+  Load the detailed development cycle only when relevant, and measure the whole process before claiming savings.
 </blockquote>
 
 <table>
   <tr>
     <td width="33%" valign="top">
       <h4>🎯 Be Specific</h4>
-      <p>"Be honest" is vague.<br>"Say 'I don't know' when uncertain" is specific.<br>
-      "Avoid hallucinations" is vague.<br>"Use Read/Grep/Bash tools to verify claims" is specific.<br><br>
+      <p>"Be honest" is vague.<br>"Check available evidence before answering or refusing" is actionable.<br>
+      "Avoid hallucinations" is vague.<br>"Cite only sources actually consulted" is checkable.<br><br>
       Every instruction is an <b>actionable, checkable behavior</b>.</p>
     </td>
     <td width="33%" valign="top">
