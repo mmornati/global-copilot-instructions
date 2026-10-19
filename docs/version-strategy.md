@@ -9,10 +9,9 @@ Each serves a different use case.
 |---|---|---|
 | **Audience** | Any AI coding tool | GitHub Copilot users |
 | **Assumes** | Nothing about the system prompt | Copilot's built-in system prompt is present |
-| **Size** | ~48 lines, 6 sections | ~28 lines, 3 sections |
 | **Portability** | Works standalone (Copilot, opencode, Claude Code, Cursor) | Requires Copilot's base system prompt |
-| **Redundancy** | ~80% overlaps with Copilot system prompt | Minimal overlap (~10%) |
-| **Token cost** | ~3,200 prompt tokens per session | ~1,300 prompt tokens per session |
+| **Evidence policy** | Inspect available tools, cite evidence, explain limits | Same |
+| **Development cycle** | Optional on-demand skill routing | Same |
 | **Maintenance** | One file for all tools | Best for Copilot-only workflows |
 
 ## Why Two Versions?
@@ -24,8 +23,9 @@ system prompt is notably comprehensive — it already tells the model to be
 concise, investigate code before acting, avoid scope creep, match existing
 style, verify changes with tests, and use built-in tools over bash commands.
 
-We analyzed Copilot's system prompt against the full instructions file and
-found approximately **80% overlap**:
+The repository's representative baseline covers many general behaviors.
+Actual built-in instructions vary by host and version; the table describes
+the intended split, not a current percentage measurement:
 
 | Section | Covered by Copilot SP? | Unique to Instructions? |
 |---|---|---|
@@ -39,9 +39,10 @@ found approximately **80% overlap**:
 | Parallel tool calling | ✅ Yes | — |
 | Git commit rules | ✅ Yes | — |
 | Proactiveness guidelines | ✅ Yes | — |
-| **Explicit "I don't know" permission** | ❌ No | ✅ **Kept in reduced** |
+| **Evidence before an answer or refusal** | Not assumed | ✅ **Kept in both** |
 | **Cite source file:line number** | ❌ No | ✅ **Kept in reduced** |
-| **Never fabricate external data** | ❌ No | ✅ **Kept in reduced** |
+| **Never fabricate external data** | Not assumed | ✅ **Kept in both** |
+| **Optional development-cycle routing** | Not assumed | ✅ **Kept in both** |
 | **Registry verification for deps** | ❌ No | ✅ **Kept in reduced** |
 | **Anti-sycophancy** | ❌ No | ✅ **Kept in reduced** |
 
@@ -58,11 +59,21 @@ right choice when:
 The **reduced version** is optimized for GitHub Copilot. It omits everything
 the Copilot system prompt already covers and keeps only the unique additions:
 
-- **Integrity**: "Say I don't know", cite source:line, never fabricate external data
+- **Integrity**: Inspect authorized tools before assuming access is unavailable,
+  cite consulted sources, distinguish retrieved facts from inference, and
+  explain specific limitations when evidence cannot establish an answer
 - **Dependencies & Security**: Registry verification, no hardcoded secrets
+- **Development Cycle**: Load the optional skill for authorized implementation,
+  without recursive worker invocation or implied workflow/publication permission
 - **Communication**: No sycophancy
 
-This saves **~1,900 prompt tokens per session** while preserving the unique value.
+Uncertainty should trigger investigation, not a fixed refusal phrase. The
+earlier reduced version incorrectly asserted that external access never
+existed. The current policy requires checking available tools first.
+
+Do not copy machine-specific settings into either shared variant. Merge these
+rules into an existing personal global file, preserving local toolchain setup.
+See [development-cycle installation and model preferences](development-cycle.md).
 
 ### How the Reduced Benchmark Works
 
@@ -76,8 +87,10 @@ environment:
 3. The combined prompt is sent to the LLM, simulating what a Copilot user
    with this file installed would actually experience
 
-This design ensures the reduced file is validated in its intended context:
-**on top of** the Copilot system prompt, not in isolation.
+This exercises the reduced file **on top of** a representative baseline, not
+in isolation. It is a simulation, not the actual app runtime. Current fixtures
+cover available, missing, and denied evidence. Actual tool discovery and
+orchestration need the [trace-based checks](../tests/behavior-regressions.md).
 
 ## Which One Should I Use?
 
@@ -93,10 +106,12 @@ This design ensures the reduced file is validated in its intended context:
                └─→ Use the reduced version
 ```
 
-## Benchmark Results
+## Historical Benchmark Results
 
-All three configurations were benchmarked against **DeepSeek V4 Flash** via
-OpenRouter on 2026-06-25.
+The repository previously reported these figures against **DeepSeek V4 Flash**
+via OpenRouter on 2026-06-25. Raw captures are not included, and these are not
+results for the current files. The reduced suite uses different prompts, so
+cross-suite token totals are not a controlled efficiency comparison.
 
 ### Three-Way Comparison
 
@@ -111,22 +126,16 @@ OpenRouter on 2026-06-25.
   <small>* Errors are from missing MCP tool 'grep' — expected in a benchmark-only environment.</small>
 </p>
 
-### Key Takeaways
+### Interpretation limits
 
-1. **Both versions outperform no instructions.** The full version cuts tokens
-   by 25.5% and errors by 40%. The reduced version goes further.
-   
-2. **The reduced version uses 77% fewer tokens** than the full version because
-   the Copilot system prompt handles the basics (conciseness, scope control,
-   verification) — the reduced file only adds what's missing.
+The old assertions rewarded "I don't know" even where tools might have supplied
+an answer. Fewer calls or a higher keyword pass rate therefore did not prove
+better factual behavior. Current assertions no longer require that phrase or
+reward an unverified claim that access is unavailable.
 
-3. **The reduced version achieves 100% assertion pass rate** for its targeted
-   tests, confirming that the unique rules (anti-hallucination, dependency
-   verification, anti-sycophancy) are sufficient when combined with Copilot's
-   built-in rules.
-
-4. **Fewer tool calls (18 vs 53)** because the model answers "I don't know"
-   immediately rather than fabricating investigations.
+Use matched prompts and available tools, inspect actual traces, and compare
+accepted outcomes as well as total cost. No savings are claimed for the new
+skill or instruction changes without new measurements.
 
 ### Config Reference
 
@@ -136,7 +145,6 @@ OpenRouter on 2026-06-25.
 | `tests/copilot-instructions-reduced-benchmark.yml` | Reduced (`copilot-instructions-reduced.md`) | Copilot system prompt baseline + reduced instructions |
 | `tests/copilot-instructions-baseline-benchmark.yml` | None | "You are a helpful AI assistant." |
 
-The reduced benchmark simulates a realistic Copilot environment by combining
-a Copilot-like system prompt with the reduced instructions. This verifies that
-the combined prompt produces correct behavior and that nothing is missing from
-the reduced version.
+The reduced benchmark combines a Copilot-like baseline with the reduced
+instructions. It provides smoke-test coverage only, not a guarantee of correct
+behavior or completeness.

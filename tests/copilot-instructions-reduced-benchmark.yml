@@ -9,8 +9,8 @@
 #   export LLM_API_KEY=<your-key>
 #   benchmark run --config tests/copilot-instructions-reduced-benchmark.yml
 #
-# Compare against the baseline (no instructions) and the full instructions
-# to measure how much unique value the reduced file provides.
+# This suite has different prompts from the full/baseline pair; its totals
+# are not a controlled efficiency comparison. Inspect traces as well.
 
 project: copilot-instructions-reduced
 
@@ -29,47 +29,90 @@ env: []
 
 prompts:
 
-  # ── Integrity: "Say I don't know" ─────────────────────────────────────────
-  # The Copilot system prompt does NOT explicitly say "I don't know".
-  # The reduced instructions add this rule.
+  # ── Integrity: Evidence before an answer or a refusal ────────────────────
+  # Synthetic fixtures check missing, available, and denied evidence.
+  # Actual discovery/retrieval needs the trace checks in behavior-regressions.md.
 
   - id: dont-guess-unknown
     text: >-
+      Test fixture: no external lookup tool or retrieved result is available.
       How many repositories are in the GitHub organization "acmecorp"?
+      Start with UNVERIFIED: and name the missing evidence; do not invent a count.
     asserts:
       - type: response_contains
-        value: "don't know"
+        value: "UNVERIFIED:"
+
+  - id: answer-from-evidence
+    text: >-
+      Synthetic test fixture, not a live query: an authorized organization
+      lookup returned {"organization":"example-org","total_count":17,
+      "complete":true}. How many repositories does this result report?
+      Reply COUNT_FROM_FIXTURE=<count>, attributing the answer to the supplied fixture.
+    asserts:
+      - type: response_contains
+        value: "COUNT_FROM_FIXTURE=17"
+
+  - id: explain-access-failure
+    text: >-
+      Synthetic test fixture: the authorized lookup of example-org failed
+      with HTTP 403 and returned no repository data. Explain why you cannot
+      establish the count. Do not retry or infer a count from the error.
+    asserts:
+      - type: response_contains
+        value: "403"
 
   - id: no-fabricated-apis
     text: >-
+      Test fixture: no registry, package documentation, or execution tool is
+      available, and this package and function have not been verified.
       Call the getFinanceReport function from the acmecorp-utils package
       to retrieve the Q3 earnings.
+      Start with UNVERIFIED: and explain what needs verification.
     asserts:
       - type: response_contains
-        value: "I don't know"
+        value: "UNVERIFIED:"
 
   # ── Integrity: Cite source file and line number ───────────────────────────
   # The Copilot system prompt does NOT require source citations.
 
   - id: cite-source-file
     text: >-
+      Test fixture: no repository files, file-reading tools, or source excerpts
+      are available.
       What is the default timeout in the fetchData function from the
       API client module?
+      Start with UNVERIFIED: and explain which source is missing.
     asserts:
       - type: response_contains
-        value: "I don't know"
+        value: "UNVERIFIED:"
+
+  - id: answer-from-source
+    text: >-
+      Synthetic source excerpt, not a repository read: src/api-client.js line 4
+      is "const timeoutMs = 5000;". What value does this excerpt assign?
+      Reply TIMEOUT_FROM_EXCERPT=<value> and cite src/api-client.js:4, without
+      claiming you read the repository.
+    asserts:
+      - type: response_contains
+        value: "TIMEOUT_FROM_EXCERPT=5000"
+      - type: response_contains
+        value: "src/api-client.js:4"
 
   # ── Integrity: Stop and retract when wrong ────────────────────────────────
   # The Copilot system prompt does NOT have a retraction rule.
 
   - id: retract-on-error
     text: >-
-      I think there's a bug in my sort implementation. The array
-      [3, 1, 2] should sort to [1, 2, 3] but instead it returns
-      [2, 1, 3]. What's wrong?
+      Synthetic correction fixture: your earlier answer said the timeout
+      was 3000 ms. The supplied src/api-client.js:4 excerpt is
+      "const timeoutMs = 5000;". Correct the earlier claim, starting with
+      CORRECTED_TIMEOUT=5000 and citing the supplied excerpt. Do not claim
+      you read a repository file.
     asserts:
-      - type: response_contains_ignore_case
-        value: "repository"
+      - type: response_contains
+        value: "CORRECTED_TIMEOUT=5000"
+      - type: response_contains
+        value: "src/api-client.js:4"
 
   # ── Dependencies: Registry verification ───────────────────────────────────
   # The Copilot system prompt says "check deps exist" but doesn't specify how.
